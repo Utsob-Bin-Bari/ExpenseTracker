@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Expense } from '@/lib/types';
+import { trailingMonths } from '@/lib/infrastructure/utils/date';
 
 interface ExpenseState {
   expenses: Expense[];
@@ -38,11 +39,11 @@ export const useExpenseStore = create<ExpenseState>()(
         })),
       purgeOldExpenses: () =>
         set((state) => {
-          const currentYear = new Date().getFullYear();
+          // Keep only expenses within the trailing 12-month window.
+          const oldest = trailingMonths(new Date())[0]!;
+          const cutoff = new Date(oldest.year, oldest.monthIdx, 1);
           return {
-            expenses: state.expenses.filter(
-              (e) => new Date(e.date).getFullYear() >= currentYear
-            ),
+            expenses: state.expenses.filter((e) => new Date(e.date) >= cutoff),
           };
         }),
     }),

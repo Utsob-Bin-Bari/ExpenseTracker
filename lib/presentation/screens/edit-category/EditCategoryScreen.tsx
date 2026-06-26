@@ -14,16 +14,24 @@ import { SPACING, CARD_RADIUS } from '@/lib/presentation/styles/variables.style'
 import { Colors } from '@/lib/presentation/styles/colors.style';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingComponent } from '@/lib/presentation/wrappers/keyboard.wrapper';
+import { MONTH_NAMES } from '@/lib/infrastructure/utils/date';
 
 export const EditCategoryScreen: React.FC = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, monthKey } = useLocalSearchParams<{ id: string; monthKey?: string }>();
   const categories = useCategoryStore((s) => s.categories);
   const category = categories.find((c) => c.id === id);
-  const { form, onSubmit } = useCategoryForm(category);
+  const { form, onSubmit } = useCategoryForm(category, monthKey);
   const { control, formState: { errors }, watch, setValue } = form;
   const selectedColor = watch('color');
+
+  const budgetLabel = (() => {
+    if (!monthKey) return 'Monthly Budget';
+    const [year, month] = monthKey.split('-');
+    const idx = Number(month) - 1;
+    return `Budget · ${MONTH_NAMES[idx] ?? ''} ${year}`;
+  })();
 
   if (!category) {
     return (
@@ -59,7 +67,7 @@ export const EditCategoryScreen: React.FC = () => {
           control={control}
           name="budget"
           render={({ field: { value, onChange } }) => (
-            <Input label="Monthly Budget" placeholder="0.00" value={value}
+            <Input label={budgetLabel} placeholder="0.00" value={value}
               onChangeText={onChange} keyboardType="decimal-pad" error={errors.budget?.message} required />
           )}
         />

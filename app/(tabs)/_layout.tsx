@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { HugeiconsIcon } from '@hugeicons/react-native';
-import { Home01Icon, GridIcon } from '@hugeicons/core-free-icons';
+import { Home01Icon, GridIcon, ChartColumnIcon } from '@hugeicons/core-free-icons';
 import { useTheme } from '@/lib/application/context/ThemeContext';
 
 export default function TabsLayout() {
@@ -37,6 +37,15 @@ export default function TabsLayout() {
           title: 'Categories',
           tabBarIcon: ({ color, size }) => (
             <HugeiconsIcon icon={GridIcon} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="yearly"
+        options={{
+          title: 'Yearly',
+          tabBarIcon: ({ color, size }) => (
+            <HugeiconsIcon icon={ChartColumnIcon} size={size} color={color} />
           ),
         }}
       />

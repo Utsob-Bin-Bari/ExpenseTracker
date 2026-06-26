@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, FlatList, Alert, Keyboard } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Controller } from 'react-hook-form';
@@ -12,6 +12,9 @@ import { useExpenseStore } from '@/lib/application/store/expenseStore';
 import { useCategoryStore } from '@/lib/application/store/categoryStore';
 import { useTheme } from '@/lib/application/context/ThemeContext';
 import { SPACING, CARD_RADIUS } from '@/lib/presentation/styles/variables.style';
+import { toMonthKey } from '@/lib/infrastructure/utils/date';
+import { resolveMonthlyBudget } from '@/lib/infrastructure/utils/budget';
+import { isCategoryVisibleInMonth } from '@/lib/infrastructure/utils/category';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingComponent } from '@/lib/presentation/wrappers/keyboard.wrapper';
 
@@ -28,7 +31,30 @@ export const EditExpenseScreen: React.FC = () => {
   const { form, onSubmit } = useExpenseForm(expense);
   const { control, formState: { errors }, watch, setValue } = form;
   const selectedCategoryId = watch('categoryId');
-  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const dateValue = watch('date');
+
+  const dateMonthKey = useMemo(() => {
+    const d = new Date(dateValue);
+    return isNaN(d.getTime()) ? toMonthKey(new Date()) : toMonthKey(d);
+  }, [dateValue]);
+
+  const monthCategories = useMemo(() => {
+    const idsWithExpenses = new Set(
+      expenses.filter((e) => toMonthKey(new Date(e.date)) === dateMonthKey).map((e) => e.categoryId)
+    );
+    return categories.filter((c) =>
+      isCategoryVisibleInMonth(c, dateMonthKey, idsWithExpenses.has(c.id))
+    );
+  }, [categories, expenses, dateMonthKey]);
+
+  const selectedCategory = monthCategories.find((c) => c.id === selectedCategoryId);
+
+  // Clear a selection that no longer belongs to the picked date's month.
+  useEffect(() => {
+    if (selectedCategoryId && !monthCategories.some((c) => c.id === selectedCategoryId)) {
+      setValue('categoryId', '');
+    }
+  }, [monthCategories, selectedCategoryId, setValue]);
 
   const handleDelete = () => {
     Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
@@ -127,7 +153,7 @@ export const EditExpenseScreen: React.FC = () => {
             <View style={styles.sheetHandle} />
             <Text textThemeName="h4" style={{ marginBottom: SPACING.md, paddingHorizontal: SPACING.md }}>Select Category</Text>
             <FlatList
-              data={categories}
+              data={monthCategories}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -136,9 +162,17 @@ export const EditExpenseScreen: React.FC = () => {
                 >
                   <View style={[styles.colorDot, { backgroundColor: item.color }]} />
                   <Text textThemeName="body">{item.name}</Text>
-                  <Text textThemeName="caption" style={{ marginLeft: 'auto', color: theme.colors.textMuted }}>${item.budget}/mo</Text>
+                  <Text textThemeName="caption" style={{ marginLeft: 'auto', color: theme.colors.textMuted }}>৳{Math.round(resolveMonthlyBudget(item, dateMonthKey))}/mo</Text>
                 </TouchableOpacity>
               )}
+              ListEmptyComponent={
+                <Text
+                  textThemeName="body"
+                  style={{ color: theme.colors.textMuted, textAlign: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.lg }}
+                >
+                  No categories for this month.{'\n'}Add one on the Categories tab.
+                </Text>
+              }
             />
           </View>
         </View>

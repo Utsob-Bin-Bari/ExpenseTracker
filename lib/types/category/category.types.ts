@@ -3,7 +3,8 @@ export interface Category {
   name: string;
   color: string;
   icon: string;
-  budget: number;
+  budget: number; // legacy baseline; still collected by the form to seed the creation month
+  monthlyBudgets?: Record<string, number>; // 'YYYY-MM' -> budget for that month (per-month, no inheritance)
   createdAt: string;
 }
 

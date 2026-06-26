@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, FlatList, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import { Controller } from 'react-hook-form';
@@ -9,8 +9,12 @@ import { Input } from '@/lib/presentation/ui/input.ui';
 import { Button } from '@/lib/presentation/ui/button.ui';
 import { useExpenseForm } from '@/lib/presentation/hooks/useExpenseForm';
 import { useCategoryStore } from '@/lib/application/store/categoryStore';
+import { useExpenseStore } from '@/lib/application/store/expenseStore';
 import { useTheme } from '@/lib/application/context/ThemeContext';
 import { SPACING, CARD_RADIUS } from '@/lib/presentation/styles/variables.style';
+import { toMonthKey } from '@/lib/infrastructure/utils/date';
+import { resolveMonthlyBudget } from '@/lib/infrastructure/utils/budget';
+import { isCategoryVisibleInMonth } from '@/lib/infrastructure/utils/category';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingComponent } from '@/lib/presentation/wrappers/keyboard.wrapper';
 
@@ -18,12 +22,36 @@ export const AddExpenseScreen: React.FC = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const categories = useCategoryStore((s) => s.categories);
+  const expenses = useExpenseStore((s) => s.expenses);
   const { form, onSubmit } = useExpenseForm();
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 
   const { control, formState: { errors }, watch, setValue } = form;
   const selectedCategoryId = watch('categoryId');
-  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const dateValue = watch('date');
+
+  const dateMonthKey = useMemo(() => {
+    const d = new Date(dateValue);
+    return isNaN(d.getTime()) ? toMonthKey(new Date()) : toMonthKey(d);
+  }, [dateValue]);
+
+  const monthCategories = useMemo(() => {
+    const idsWithExpenses = new Set(
+      expenses.filter((e) => toMonthKey(new Date(e.date)) === dateMonthKey).map((e) => e.categoryId)
+    );
+    return categories.filter((c) =>
+      isCategoryVisibleInMonth(c, dateMonthKey, idsWithExpenses.has(c.id))
+    );
+  }, [categories, expenses, dateMonthKey]);
+
+  const selectedCategory = monthCategories.find((c) => c.id === selectedCategoryId);
+
+  // Clear a selection that no longer belongs to the picked date's month.
+  useEffect(() => {
+    if (selectedCategoryId && !monthCategories.some((c) => c.id === selectedCategoryId)) {
+      setValue('categoryId', '');
+    }
+  }, [monthCategories, selectedCategoryId, setValue]);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
@@ -139,7 +167,7 @@ export const AddExpenseScreen: React.FC = () => {
               Select Category
             </Text>
             <FlatList
-              data={categories}
+              data={monthCategories}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -155,10 +183,18 @@ export const AddExpenseScreen: React.FC = () => {
                   <View style={[styles.colorDot, { backgroundColor: item.color }]} />
                   <Text textThemeName="body">{item.name}</Text>
                   <Text textThemeName="caption" style={{ marginLeft: 'auto', color: theme.colors.textMuted }}>
-                    ${item.budget}/mo
+                    ৳{Math.round(resolveMonthlyBudget(item, dateMonthKey))}/mo
                   </Text>
                 </TouchableOpacity>
               )}
+              ListEmptyComponent={
+                <Text
+                  textThemeName="body"
+                  style={{ color: theme.colors.textMuted, textAlign: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.lg }}
+                >
+                  No categories for this month.{'\n'}Add one on the Categories tab.
+                </Text>
+              }
             />
           </View>
         </View>

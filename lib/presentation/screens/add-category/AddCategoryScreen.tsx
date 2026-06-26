@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Controller } from 'react-hook-form';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import { Cancel01Icon } from '@hugeicons/core-free-icons';
@@ -17,7 +17,8 @@ import { KeyboardAvoidingComponent } from '@/lib/presentation/wrappers/keyboard.
 export const AddCategoryScreen: React.FC = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { form, onSubmit } = useCategoryForm();
+  const { monthKey } = useLocalSearchParams<{ monthKey?: string }>();
+  const { form, onSubmit } = useCategoryForm(undefined, monthKey);
   const { control, formState: { errors }, watch, setValue } = form;
   const selectedColor = watch('color');
 

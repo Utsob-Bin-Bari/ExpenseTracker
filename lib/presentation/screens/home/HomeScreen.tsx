@@ -18,11 +18,11 @@ import { useExpenseStore } from '@/lib/application/store/expenseStore';
 import { useCategoryStore } from '@/lib/application/store/categoryStore';
 import { useTheme } from '@/lib/application/context/ThemeContext';
 import { SPACING, CARD_RADIUS } from '@/lib/presentation/styles/variables.style';
+import { trailingMonths, toMonthKey } from '@/lib/infrastructure/utils/date';
 import { format } from 'date-fns';
 import type { Expense } from '@/lib/types';
 
 const PAGE_SIZE = 15;
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 type DaySection = {
   date: string;
@@ -38,36 +38,33 @@ export const HomeScreen: React.FC = () => {
   const categories = useCategoryStore((s) => s.categories);
 
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonthIdx = now.getMonth();
+  const currentMonthKey = toMonthKey(now);
   const todayStr = format(now, 'yyyy-MM-dd');
   const yesterdayStr = format(new Date(now.getTime() - 86400000), 'yyyy-MM-dd');
 
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthIdx);
+  const months = useMemo(() => trailingMonths(now), [now.getFullYear(), now.getMonth()]);
+  const monthChips = useMemo(() => [...months].reverse(), [months]); // newest -> oldest
+  const [selectedMonthKey, setSelectedMonthKey] = useState(currentMonthKey);
   const [displayedCount, setDisplayedCount] = useState(PAGE_SIZE);
 
-  const availableMonths = useMemo(
-    () => Array.from({ length: currentMonthIdx + 1 }, (_, i) => i),
-    [currentMonthIdx]
+  const selectedMonthInfo = useMemo(
+    () => months.find((m) => m.key === selectedMonthKey) ?? months[months.length - 1]!,
+    [months, selectedMonthKey]
   );
 
   const monthExpenses = useMemo(
-    () =>
-      expenses.filter((e) => {
-        const d = new Date(e.date);
-        return d.getFullYear() === currentYear && d.getMonth() === selectedMonth;
-      }),
-    [expenses, selectedMonth, currentYear]
+    () => expenses.filter((e) => toMonthKey(new Date(e.date)) === selectedMonthKey),
+    [expenses, selectedMonthKey]
   );
 
   const sortedExpenses = useMemo(() => {
-    const isCurrentMonth = selectedMonth === currentMonthIdx;
+    const isCurrentMonth = selectedMonthKey === currentMonthKey;
     return [...monthExpenses].sort((a, b) => {
       const da = new Date(a.date).getTime();
       const db = new Date(b.date).getTime();
       return isCurrentMonth ? db - da : da - db;
     });
-  }, [monthExpenses, selectedMonth, currentMonthIdx]);
+  }, [monthExpenses, selectedMonthKey, currentMonthKey]);
 
   const totalSpent = useMemo(
     () => monthExpenses.reduce((s, e) => s + e.amount, 0),
@@ -106,8 +103,8 @@ export const HomeScreen: React.FC = () => {
     [categories]
   );
 
-  const handleMonthSelect = useCallback((month: number) => {
-    setSelectedMonth(month);
+  const handleMonthSelect = useCallback((key: string) => {
+    setSelectedMonthKey(key);
     setDisplayedCount(PAGE_SIZE);
   }, []);
 
@@ -126,7 +123,7 @@ export const HomeScreen: React.FC = () => {
         <View style={[styles.summaryStrip, { backgroundColor: theme.colors.primary }]}>
           <View style={styles.summaryItem}>
             <Text textThemeName="caption" style={styles.summaryLabel}>
-              {MONTH_NAMES[selectedMonth]} {currentYear}
+              {selectedMonthInfo.shortLabel} {selectedMonthInfo.year}
             </Text>
             <Text textThemeName="h3" style={styles.summaryValue}>
               ৳{Math.round(totalSpent).toLocaleString()}
@@ -207,12 +204,12 @@ export const HomeScreen: React.FC = () => {
           contentContainerStyle={styles.monthChips}
           style={styles.monthFilterRow}
         >
-          {availableMonths.map((month) => {
-            const isSelected = month === selectedMonth;
+          {monthChips.map((m) => {
+            const isSelected = m.key === selectedMonthKey;
             return (
               <TouchableOpacity
-                key={month}
-                onPress={() => handleMonthSelect(month)}
+                key={m.key}
+                onPress={() => handleMonthSelect(m.key)}
                 activeOpacity={0.7}
                 style={[
                   styles.monthChip,
@@ -226,7 +223,7 @@ export const HomeScreen: React.FC = () => {
                   textThemeName="caption"
                   style={{ color: isSelected ? '#fff' : theme.colors.textSecondary }}
                 >
-                  {MONTH_NAMES[month]}
+                  {m.shortLabel} {String(m.year).slice(2)}
                 </Text>
               </TouchableOpacity>
             );
@@ -251,9 +248,9 @@ export const HomeScreen: React.FC = () => {
       totalSpent,
       monthExpenses.length,
       pieData,
-      availableMonths,
-      selectedMonth,
-      currentYear,
+      monthChips,
+      selectedMonthKey,
+      selectedMonthInfo,
       handleMonthSelect,
     ]
   );
@@ -340,7 +337,7 @@ export const HomeScreen: React.FC = () => {
               textThemeName="body"
               style={{ color: theme.colors.textMuted, textAlign: 'center' }}
             >
-              No expenses in {MONTH_NAMES[selectedMonth]}.{'\n'}Tap + to add one.
+              No expenses in {selectedMonthInfo.shortLabel} {selectedMonthInfo.year}.{'\n'}Tap + to add one.
             </Text>
           </View>
         }
