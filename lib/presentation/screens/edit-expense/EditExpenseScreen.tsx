@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, FlatList, Alert, Keyboard } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Controller } from 'react-hook-form';
 import { HugeiconsIcon } from '@hugeicons/react-native';
@@ -99,7 +99,7 @@ export const EditExpenseScreen: React.FC = () => {
             Category <Text textThemeName="label" style={{ color: theme.colors.error }}>*</Text>
           </Text>
           <TouchableOpacity
-            onPress={() => setCategoryPickerOpen(true)}
+            onPress={() => { Keyboard.dismiss(); setCategoryPickerOpen(true); }}
             style={[styles.pickerButton, { borderColor: errors.categoryId ? theme.colors.error : theme.colors.inputBorder, backgroundColor: theme.colors.inputBackground }]}
           >
             {selectedCategory ? (
