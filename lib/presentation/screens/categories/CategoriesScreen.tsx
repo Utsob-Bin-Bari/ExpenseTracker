@@ -21,6 +21,7 @@ export const CategoriesScreen: React.FC = () => {
   const categories = useCategoryStore((s) => s.categories);
   const removeMonthlyBudget = useCategoryStore((s) => s.removeMonthlyBudget);
   const expenses = useExpenseStore((s) => s.expenses);
+  const deleteExpensesByCategoryInMonth = useExpenseStore((s) => s.deleteExpensesByCategoryInMonth);
 
   const now = new Date();
   const months = useMemo(() => trailingMonths(now), [now.getFullYear(), now.getMonth()]);
@@ -68,12 +69,22 @@ export const CategoriesScreen: React.FC = () => {
   }, [selectedMonthKey]);
 
   const handleDelete = (id: string, name: string) => {
+    const count = monthExpenses.filter((e) => e.categoryId === id).length;
+    const expensePart =
+      count > 0 ? ` and its ${count} expense${count === 1 ? '' : 's'}` : '';
     Alert.alert(
       'Remove Category',
-      `Remove "${name}" from ${selectedMonthLabel}? Other months and all expenses are unaffected.`,
+      `Remove "${name}"${expensePart} for ${selectedMonthLabel}? Other months are unaffected.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => removeMonthlyBudget(id, selectedMonthKey) },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            deleteExpensesByCategoryInMonth(id, selectedMonthKey);
+            removeMonthlyBudget(id, selectedMonthKey);
+          },
+        },
       ]
     );
   };

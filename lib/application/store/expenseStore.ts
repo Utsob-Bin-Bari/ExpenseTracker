@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Expense } from '@/lib/types';
-import { trailingMonths } from '@/lib/infrastructure/utils/date';
+import { toMonthKey, trailingMonths } from '@/lib/infrastructure/utils/date';
 
 interface ExpenseState {
   expenses: Expense[];
   addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => void;
   updateExpense: (id: string, updates: Partial<Omit<Expense, 'id' | 'createdAt'>>) => void;
   deleteExpense: (id: string) => void;
+  deleteExpensesByCategoryInMonth: (categoryId: string, monthKey: string) => void;
   purgeOldExpenses: () => void;
 }
 
@@ -36,6 +37,12 @@ export const useExpenseStore = create<ExpenseState>()(
       deleteExpense: (id) =>
         set((state) => ({
           expenses: state.expenses.filter((e) => e.id !== id),
+        })),
+      deleteExpensesByCategoryInMonth: (categoryId, monthKey) =>
+        set((state) => ({
+          expenses: state.expenses.filter(
+            (e) => !(e.categoryId === categoryId && toMonthKey(new Date(e.date)) === monthKey)
+          ),
         })),
       purgeOldExpenses: () =>
         set((state) => {
